@@ -1,7 +1,8 @@
-# Go modules are released by tagging. On each merge to main, tag the next version:
-# a minor bump if the merged PR has the semver:minor label (set by
-# phasetwo-sdk-generator for breaking spec changes), otherwise a patch bump.
-# The first release is v0.1.0. Skip with [ci skip] in the commit message.
+# Go modules are released by tagging. On each merge to main, tag the next version.
+# Versions follow the API version in sdk-generator.json (the spec's info.version),
+# shared by all Phase Two SDKs: the first release for API X.Y is X.Y.0, and later
+# releases (e.g. SDK-only fixes) are X.Y.1, X.Y.2, ... based on this repo's tags.
+# Skip with [ci skip] in the commit message.
 name: release
 
 on:
@@ -10,7 +11,6 @@ on:
 
 permissions:
   contents: write
-  pull-requests: read
 
 jobs:
   release:
@@ -28,18 +28,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          last=$(git tag --list 'v*' --sort=-v:refname | head -1)
-          labels=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" --jq '.[0].labels[].name' 2>/dev/null || true)
-          if [ -z "$last" ]; then
-            next=v0.1.0   # first release
-          else
-            IFS=. read -r major minor patch <<< "${last#v}"
-            if grep -qx 'semver:minor' <<< "$labels"; then
-              next="v$major.$((minor + 1)).0"
-            else
-              next="v$major.$minor.$((patch + 1))"
-            fi
-          fi
+          api=$(sed -n 's/.*"apiVersion": *"\([^"]*\)".*/\1/p' sdk-generator.json)
+          [ -n "$api" ] || { echo "::error::no apiVersion in sdk-generator.json"; exit 1; }
+          mm=${api%.*}
+          last=$(git tag --list "v$mm.*" --sort=-v:refname | head -1)
+          if [ -z "$last" ]; then next="v$mm.0"; else next="v$mm.$(( ${last##*.} + 1 ))"; fi
           git tag "$next" "$GITHUB_SHA"
           git push origin "$next"
           gh release create "$next" --generate-notes --verify-tag

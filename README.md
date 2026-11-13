@@ -22,7 +22,7 @@
 A Go client for the [Phase Two Admin REST API](https://phasetwo.io/api/phase-two-admin-rest-api): the organizations, members, roles, domains, identity providers, invitations, SCIM, webhooks, events and realm attributes that Phase Two adds to Keycloak. For core Keycloak administration (realms, users, clients), use a Keycloak admin client alongside it.
 
 > [!NOTE]
-> Pre-1.0: minor versions can contain breaking changes, which come from changes to the API spec. Pin a version.
+> All Phase Two SDKs (Java, TypeScript, Python, Go) share the version of the Phase Two API they implement: every SDK release X.Y.* implements API X.Y, and patch releases are SDK-only fixes. While on 0.x, a new minor version can contain breaking changes from the API spec, so pin a version.
 
 ## Installation
 
