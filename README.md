@@ -19,10 +19,10 @@
 > ```
 <!-- phasetwo:banner:end -->
 
-A Go client for the [Phase Two Admin REST API](https://phasetwo.io/api/phase-two-admin-rest-api): the organizations, members, roles, domains, identity providers, invitations, SCIM, webhooks, events and realm attributes that Phase Two adds to Keycloak. For core Keycloak administration (realms, users, clients), use a Keycloak admin client alongside it.
+A Go client for the [Phase Two Admin REST API](https://phasetwo.io/api/phase-two-admin-rest-api): organizations, members, roles, domains, identity providers, invitations, SCIM, webhooks and events, realm attributes and magic links, all added to Keycloak by Phase Two. For core Keycloak administration (realms, users, clients), use a Keycloak admin client such as [gocloak](https://github.com/Nerzal/gocloak) alongside it.
 
 > [!NOTE]
-> All Phase Two SDKs (Java, TypeScript, Python, Go) share the version of the Phase Two API they implement: every SDK release X.Y.* implements API X.Y, and patch releases are SDK-only fixes. While on 0.x, a new minor version can contain breaking changes from the API spec, so pin a version.
+> Pre-1.0: minor versions can include breaking changes. All Phase Two SDKs share a version: release X.Y.* implements Phase Two API X.Y.
 
 ## Installation
 
@@ -34,6 +34,9 @@ Requires Go 1.26 or later.
 
 ## Quick start
 
+Connect with a service account:
+
+<!-- phasetwo:snippet client example_test.go -->
 ```go
 ctx := context.Background()
 realm := "my-realm"
@@ -47,45 +50,96 @@ client, err := phasetwo.New(ctx, phasetwo.Config{
 if err != nil {
 	log.Fatal(err)
 }
+```
+<!-- /phasetwo:snippet -->
 
+Create an organization, add a member, create an IdP Wizard link so the organization's admin can set up SSO, and send an audit event:
+
+<!-- phasetwo:snippet quickstart example_test.go -->
+```go
 // Create an organization. The new id is in the Location header.
 name := "example"
-created, err := client.CreateOrganizationWithResponse(ctx, realm, openapi.OrganizationRepresentation{Name: &name})
+created, err := client.CreateOrganizationWithResponse(ctx, realm,
+	openapi.OrganizationRepresentation{Name: &name})
 if err != nil {
-	log.Fatal(err)
+	return "", err
 }
 if err := phasetwo.Check(created.HTTPResponse, created.Body); err != nil {
-	log.Fatal(err)
+	return "", err
 }
-orgID, _ := phasetwo.IDFromLocation(created.HTTPResponse)
-
-// Create a link to the IdP Wizard for the organization
-link, err := client.CreatePortalLinkWithFormdataBodyWithResponse(ctx, realm, orgID, openapi.CreatePortalLinkFormdataRequestBody{})
+orgID, err := phasetwo.IDFromLocation(created.HTTPResponse)
 if err != nil {
-	log.Fatal(err)
+	return "", err
 }
-fmt.Println(*link.JSON200.Link)
-```
 
-The same code is in [`example_test.go`](example_test.go), which `go test` compiles.
+// Add an existing user as a member.
+added, err := client.AddOrganizationMemberWithResponse(ctx, realm, orgID, userID)
+if err != nil {
+	return "", err
+}
+if err := phasetwo.Check(added.HTTPResponse, added.Body); err != nil {
+	return "", err
+}
+
+// Create a link to the IdP Wizard, so the organization's admin can set up SSO.
+link, err := client.CreatePortalLinkWithFormdataBodyWithResponse(ctx, realm, orgID,
+	openapi.CreatePortalLinkFormdataRequestBody{})
+if err != nil {
+	return "", err
+}
+if err := phasetwo.Check(link.HTTPResponse, link.Body); err != nil {
+	return "", err
+}
+fmt.Println("IdP Wizard:", *link.JSON200.Link)
+
+// Send an audit event.
+eventType := "example.created"
+now := time.Now().UnixMilli()
+sent, err := client.CreateEventWithResponse(ctx, realm,
+	openapi.EventRepresentation{Type: &eventType, Time: &now})
+if err != nil {
+	return "", err
+}
+if err := phasetwo.Check(sent.HTTPResponse, sent.Body); err != nil {
+	return "", err
+}
+```
+<!-- /phasetwo:snippet -->
+
+This code is in [`example_test.go`](example_test.go). The integration test runs it against Phase Two Keycloak in CI.
 
 ## Authentication
 
-`phasetwo.New` gets tokens with the client credentials grant and refreshes them as they expire. Create a confidential client with a [service account](https://phasetwo.io/docs/api/service-accounts) that has the roles your calls need.
+`phasetwo.New` gets tokens with the client credentials grant and refreshes them as they expire. Create a confidential client with a [service account](https://phasetwo.io/docs/api/service-accounts) that has the roles your calls need, and pass its client id and secret in `Config`.
 
 To bring your own tokens (e.g. from a login flow), set `Config.TokenSource` to any `oauth2.TokenSource`. `Config.HTTPClient` sets timeouts, proxies or a custom transport for both token and API requests.
 
 ## Usage
 
-Every operation in the [API reference](https://phasetwo.io/api/phase-two-admin-rest-api) is a method on `Client`, named after its operationId, with the realm as the first argument after the context:
-
-- `XxxWithResponse(...)` returns a typed response: `JSON200` (or `JSON201`, ...) holds the decoded body, `HTTPResponse` and `Body` the raw response.
-- Operations with request bodies take a typed body (`openapi.OrganizationRepresentation`, ...). There's also a `...WithBodyWithResponse` variant that takes an `io.Reader`.
-- Optional query parameters are in a `*openapi.XxxParams` struct. Pass `nil` for none.
+- Every operation in the [API reference](https://phasetwo.io/api/phase-two-admin-rest-api) is a method on `Client`, named after its operationId, with the realm as the first argument after the context.
+- `XxxWithResponse(...)` returns a typed response: `JSON200` (or `JSON201`, ...) holds the decoded body, and `HTTPResponse` and `Body` hold the raw response.
+- Operations with a request body take a typed body (`openapi.OrganizationRepresentation`, ...). The `...WithBodyWithResponse` variant takes an `io.Reader` instead.
+- Optional query parameters are in an `*openapi.XxxParams` struct. Pass `nil` for none.
+- Creating a resource returns `201 Created` with an empty body. Get the new id from the `Location` header with `phasetwo.IDFromLocation(resp.HTTPResponse)`.
 
 ### Errors
 
-A non-2xx response is not a Go error; check it with `phasetwo.Check(resp.HTTPResponse, resp.Body)`, which returns a `*phasetwo.APIError` with the status code and body.
+A non-2xx response is not a Go error. Check it with `phasetwo.Check(resp.HTTPResponse, resp.Body)`, which returns a `*phasetwo.APIError` with the status code and body:
+
+```go
+var apiErr *phasetwo.APIError
+if errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusNotFound {
+	// ...
+}
+```
+
+## Compatibility
+
+| SDK | Phase Two API | Tested against |
+|---|---|---|
+| v0.2.x | 0.2 | `quay.io/phasetwo/phasetwo-keycloak:26.5.6` |
+
+The API version and the spec commit the SDK was generated from are in [`sdk-generator.json`](sdk-generator.json). CI tests the two latest Go releases, matching Go's own support policy.
 
 ## API reference
 
@@ -94,7 +148,7 @@ A non-2xx response is not a Go error; check it with `phasetwo.Check(resp.HTTPRes
 
 ## Generated code
 
-The `openapi` package is generated from the [Phase Two OpenAPI spec](https://github.com/p2-inc/phasetwo-docs/blob/main/openapi.yaml) with [oapi-codegen](https://github.com/oapi-codegen/oapi-codegen) by [phasetwo-sdk-generator](https://github.com/p2-inc/phasetwo-sdk-generator). Don't edit it by hand; `sdk-generator.json` records the spec commit it came from. Everything in the root `phasetwo` package is hand-written.
+The `openapi` package is generated from the [Phase Two OpenAPI spec](https://github.com/p2-inc/phasetwo-docs/blob/main/openapi.yaml) with [oapi-codegen](https://github.com/oapi-codegen/oapi-codegen) by [phasetwo-sdk-generator](https://github.com/p2-inc/phasetwo-sdk-generator). Don't edit it by hand: CI regenerates it and fails if it differs. Everything in the root `phasetwo` package is hand-written.
 
 ```sh
 go test ./...                    # unit tests

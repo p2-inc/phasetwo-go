@@ -23,3 +23,13 @@ jobs:
       - run: go test ./...
       - name: Integration test (Phase Two Keycloak in Docker)
         run: go test -tags integration -count=1 ./...
+
+  # One stable check name for branch protection, whatever the matrix above holds.
+  # Add new jobs to needs.
+  ci-ok:
+    if: always()
+    needs: [test]
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}" = false ]
