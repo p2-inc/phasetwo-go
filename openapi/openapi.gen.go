@@ -178,15 +178,17 @@ type EventRepresentation struct {
 	Error          *string                    `json:"error,omitempty"`
 	Id             *string                    `json:"id,omitempty"`
 	OperationType  *string                    `json:"operationType,omitempty"`
-	OrganizationId *string                    `json:"organizationId,omitempty"`
 	RealmId        *string                    `json:"realmId,omitempty"`
 	RealmName      *string                    `json:"realmName,omitempty"`
 	Representation *string                    `json:"representation,omitempty"`
-	ResourcePath   *string                    `json:"resourcePath,omitempty"`
-	ResourceType   *string                    `json:"resourceType,omitempty"`
-	Time           *int64                     `json:"time,omitempty"`
-	Type           *string                    `json:"type,omitempty"`
-	Uid            *string                    `json:"uid,omitempty"`
+
+	// ResourceId Id of the affected resource (set by the server).
+	ResourceId   *string `json:"resourceId,omitempty"`
+	ResourcePath *string `json:"resourcePath,omitempty"`
+	ResourceType *string `json:"resourceType,omitempty"`
+	Time         *int64  `json:"time,omitempty"`
+	Type         *string `json:"type,omitempty"`
+	Uid          *string `json:"uid,omitempty"`
 }
 
 // ExternalBasicScimAuth HTTP Basic auth. The password is hashed with Argon2id before
@@ -301,14 +303,16 @@ type IdpInitiatedClientRepresentationProtocol string
 
 // InvitationRepresentation defines model for InvitationRepresentation.
 type InvitationRepresentation struct {
-	Attributes     *map[string][]string `json:"attributes,omitempty"`
-	CreatedAt      *string              `json:"createdAt,omitempty"`
-	Email          *string              `json:"email,omitempty"`
-	Id             *string              `json:"id,omitempty"`
-	InvitationUrl  *string              `json:"invitationUrl,omitempty"`
-	InviterId      *string              `json:"inviterId,omitempty"`
-	OrganizationId *string              `json:"organizationId,omitempty"`
-	Roles          *[]string            `json:"roles,omitempty"`
+	Attributes *map[string][]string `json:"attributes,omitempty"`
+
+	// CreatedAt Creation time in UTC, to the minute (`yyyy-MM-ddTHH:mmZ`, e.g. `2026-01-31T09:15Z`).
+	CreatedAt      *string   `json:"createdAt,omitempty"`
+	Email          *string   `json:"email,omitempty"`
+	Id             *string   `json:"id,omitempty"`
+	InvitationUrl  *string   `json:"invitationUrl,omitempty"`
+	InviterId      *string   `json:"inviterId,omitempty"`
+	OrganizationId *string   `json:"organizationId,omitempty"`
+	Roles          *[]string `json:"roles,omitempty"`
 }
 
 // InvitationRequestRepresentation defines model for InvitationRequestRepresentation.
@@ -641,17 +645,19 @@ type WebhookRepresentation struct {
 
 // WebhookSendRepresentation defines model for WebhookSendRepresentation.
 type WebhookSendRepresentation struct {
-	EventId           *string                `json:"event_id,omitempty"`
-	Id                *string                `json:"id,omitempty"`
-	KeycloakEventId   *string                `json:"keycloak_event_id,omitempty"`
-	KeycloakEventType *string                `json:"keycloak_event_type,omitempty"`
-	Payload           *string                `json:"payload,omitempty"`
-	Retried           *int                   `json:"retried,omitempty"`
-	SentAt            *string                `json:"sent_at,omitempty"`
-	Status            *int                   `json:"status,omitempty"`
-	StatusMessage     *string                `json:"status_message,omitempty"`
-	Type              *string                `json:"type,omitempty"`
-	Webhook           *WebhookRepresentation `json:"webhook,omitempty"`
+	EventId           *string `json:"event_id,omitempty"`
+	Id                *string `json:"id,omitempty"`
+	KeycloakEventId   *string `json:"keycloak_event_id,omitempty"`
+	KeycloakEventType *string `json:"keycloak_event_type,omitempty"`
+	Payload           *string `json:"payload,omitempty"`
+	Retries           *int    `json:"retries,omitempty"`
+
+	// SentAt When the send was attempted, in milliseconds since the epoch.
+	SentAt        *int64                 `json:"sent_at,omitempty"`
+	Status        *int                   `json:"status,omitempty"`
+	StatusMessage *string                `json:"status_message,omitempty"`
+	Type          *string                `json:"type,omitempty"`
+	Webhook       *WebhookRepresentation `json:"webhook,omitempty"`
 }
 
 // GetOrganizationsParams defines parameters for GetOrganizations.
@@ -9284,9 +9290,16 @@ func (r GetRealmAttributesResponse) ContentType() string {
 	return ""
 }
 
+// CreateRealmAttributeResponse201Headers the declared response headers of an HTTP 201 response for CreateRealmAttribute
+type CreateRealmAttributeResponse201Headers struct {
+	Location *string
+}
+
 type CreateRealmAttributeResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	// Headers201 the parsed response headers for an HTTP 201 response
+	Headers201 *CreateRealmAttributeResponse201Headers
 }
 
 // GetBody returns the raw response body bytes
@@ -10198,9 +10211,16 @@ func (r GetIdpsResponse) ContentType() string {
 	return ""
 }
 
+// CreateIdpResponse201Headers the declared response headers of an HTTP 201 response for CreateIdp
+type CreateIdpResponse201Headers struct {
+	Location *string
+}
+
 type CreateIdpResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	// Headers201 the parsed response headers for an HTTP 201 response
+	Headers201 *CreateIdpResponse201Headers
 }
 
 // GetBody returns the raw response body bytes
@@ -10314,9 +10334,16 @@ func (r ImportIdpJsonResponse) ContentType() string {
 	return ""
 }
 
+// LinkIdpResponse201Headers the declared response headers of an HTTP 201 response for LinkIdp
+type LinkIdpResponse201Headers struct {
+	Location *string
+}
+
 type LinkIdpResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	// Headers201 the parsed response headers for an HTTP 201 response
+	Headers201 *LinkIdpResponse201Headers
 }
 
 // GetBody returns the raw response body bytes
@@ -10498,9 +10525,16 @@ func (r GetIdpMappersResponse) ContentType() string {
 	return ""
 }
 
+// AddIdpMapperResponse201Headers the declared response headers of an HTTP 201 response for AddIdpMapper
+type AddIdpMapperResponse201Headers struct {
+	Location *string
+}
+
 type AddIdpMapperResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	// Headers201 the parsed response headers for an HTTP 201 response
+	Headers201 *AddIdpMapperResponse201Headers
 }
 
 // GetBody returns the raw response body bytes
@@ -10716,9 +10750,16 @@ func (r GetOrganizationInvitationsResponse) ContentType() string {
 	return ""
 }
 
+// AddOrganizationInvitationResponse201Headers the declared response headers of an HTTP 201 response for AddOrganizationInvitation
+type AddOrganizationInvitationResponse201Headers struct {
+	Location *string
+}
+
 type AddOrganizationInvitationResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	// Headers201 the parsed response headers for an HTTP 201 response
+	Headers201 *AddOrganizationInvitationResponse201Headers
 }
 
 // GetBody returns the raw response body bytes
@@ -11050,9 +11091,16 @@ func (r CheckOrganizationMembershipResponse) ContentType() string {
 	return ""
 }
 
+// AddOrganizationMemberResponse201Headers the declared response headers of an HTTP 201 response for AddOrganizationMember
+type AddOrganizationMemberResponse201Headers struct {
+	Location *string
+}
+
 type AddOrganizationMemberResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	// Headers201 the parsed response headers for an HTTP 201 response
+	Headers201 *AddOrganizationMemberResponse201Headers
 }
 
 // GetBody returns the raw response body bytes
@@ -11289,9 +11337,16 @@ func (r DeleteOrganizationRolesResponse) ContentType() string {
 	return ""
 }
 
+// CreateOrganizationRoleResponse201Headers the declared response headers of an HTTP 201 response for CreateOrganizationRole
+type CreateOrganizationRoleResponse201Headers struct {
+	Location *string
+}
+
 type CreateOrganizationRoleResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	// Headers201 the parsed response headers for an HTTP 201 response
+	Headers201 *CreateOrganizationRoleResponse201Headers
 }
 
 // GetBody returns the raw response body bytes
@@ -11582,9 +11637,16 @@ func (r CheckUserOrganizationRoleResponse) ContentType() string {
 	return ""
 }
 
+// GrantUserOrganizationRoleResponse201Headers the declared response headers of an HTTP 201 response for GrantUserOrganizationRole
+type GrantUserOrganizationRoleResponse201Headers struct {
+	Location *string
+}
+
 type GrantUserOrganizationRoleResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	// Headers201 the parsed response headers for an HTTP 201 response
+	Headers201 *GrantUserOrganizationRoleResponse201Headers
 }
 
 // GetBody returns the raw response body bytes
@@ -12060,9 +12122,16 @@ func (r GetWebhooksResponse) ContentType() string {
 	return ""
 }
 
+// CreateWebhookResponse201Headers the declared response headers of an HTTP 201 response for CreateWebhook
+type CreateWebhookResponse201Headers struct {
+	Location *string
+}
+
 type CreateWebhookResponse struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	// Headers201 the parsed response headers for an HTTP 201 response
+	Headers201 *CreateWebhookResponse201Headers
 }
 
 // GetBody returns the raw response body bytes
@@ -14105,6 +14174,19 @@ func ParseCreateRealmAttributeResponse(rsp *http.Response) (*CreateRealmAttribut
 		HTTPResponse: rsp,
 	}
 
+	switch {
+	case rsp.StatusCode == 201:
+		var headers CreateRealmAttributeResponse201Headers
+		if values := rsp.Header.Values("Location"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "Location", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.Location = &value
+		}
+		response.Headers201 = &headers
+	}
+
 	return response, nil
 }
 
@@ -14650,6 +14732,19 @@ func ParseCreateIdpResponse(rsp *http.Response) (*CreateIdpResponse, error) {
 		HTTPResponse: rsp,
 	}
 
+	switch {
+	case rsp.StatusCode == 201:
+		var headers CreateIdpResponse201Headers
+		if values := rsp.Header.Values("Location"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "Location", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.Location = &value
+		}
+		response.Headers201 = &headers
+	}
+
 	return response, nil
 }
 
@@ -14719,6 +14814,19 @@ func ParseLinkIdpResponse(rsp *http.Response) (*LinkIdpResponse, error) {
 	response := &LinkIdpResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 201:
+		var headers LinkIdpResponse201Headers
+		if values := rsp.Header.Values("Location"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "Location", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.Location = &value
+		}
+		response.Headers201 = &headers
 	}
 
 	return response, nil
@@ -14819,6 +14927,19 @@ func ParseAddIdpMapperResponse(rsp *http.Response) (*AddIdpMapperResponse, error
 	response := &AddIdpMapperResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 201:
+		var headers AddIdpMapperResponse201Headers
+		if values := rsp.Header.Values("Location"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "Location", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.Location = &value
+		}
+		response.Headers201 = &headers
 	}
 
 	return response, nil
@@ -14935,6 +15056,19 @@ func ParseAddOrganizationInvitationResponse(rsp *http.Response) (*AddOrganizatio
 	response := &AddOrganizationInvitationResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 201:
+		var headers AddOrganizationInvitationResponse201Headers
+		if values := rsp.Header.Values("Location"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "Location", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.Location = &value
+		}
+		response.Headers201 = &headers
 	}
 
 	return response, nil
@@ -15121,6 +15255,19 @@ func ParseAddOrganizationMemberResponse(rsp *http.Response) (*AddOrganizationMem
 		HTTPResponse: rsp,
 	}
 
+	switch {
+	case rsp.StatusCode == 201:
+		var headers AddOrganizationMemberResponse201Headers
+		if values := rsp.Header.Values("Location"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "Location", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.Location = &value
+		}
+		response.Headers201 = &headers
+	}
+
 	return response, nil
 }
 
@@ -15279,6 +15426,19 @@ func ParseCreateOrganizationRoleResponse(rsp *http.Response) (*CreateOrganizatio
 		HTTPResponse: rsp,
 	}
 
+	switch {
+	case rsp.StatusCode == 201:
+		var headers CreateOrganizationRoleResponse201Headers
+		if values := rsp.Header.Values("Location"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "Location", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.Location = &value
+		}
+		response.Headers201 = &headers
+	}
+
 	return response, nil
 }
 
@@ -15435,6 +15595,19 @@ func ParseGrantUserOrganizationRoleResponse(rsp *http.Response) (*GrantUserOrgan
 	response := &GrantUserOrganizationRoleResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 201:
+		var headers GrantUserOrganizationRoleResponse201Headers
+		if values := rsp.Header.Values("Location"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "Location", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.Location = &value
+		}
+		response.Headers201 = &headers
 	}
 
 	return response, nil
@@ -15760,6 +15933,19 @@ func ParseCreateWebhookResponse(rsp *http.Response) (*CreateWebhookResponse, err
 	response := &CreateWebhookResponse{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 201:
+		var headers CreateWebhookResponse201Headers
+		if values := rsp.Header.Values("Location"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "Location", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.Location = &value
+		}
+		response.Headers201 = &headers
 	}
 
 	return response, nil
