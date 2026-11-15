@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -65,6 +66,17 @@ func TestIntegration(t *testing.T) {
 	}
 	realm := "master"
 
+	// The README quick start (example_test.go), with a new user as the member.
+	memberID := createUser(t, ctx, oc.Client(ctx, tok), base, realm, fmt.Sprintf("member-%d", time.Now().UnixNano()))
+	qsOrg, err := quickstart(ctx, client, realm, memberID)
+	if err != nil {
+		t.Fatalf("quickstart: %v", err)
+	}
+	isMember, err := client.CheckOrganizationMembershipWithResponse(ctx, realm, qsOrg, memberID)
+	must(t, isMember.HTTPResponse, isMember.Body, err)
+	qsDel, err := client.DeleteOrganizationWithResponse(ctx, realm, qsOrg)
+	must(t, qsDel.HTTPResponse, qsDel.Body, err)
+
 	name := fmt.Sprintf("go-%d", time.Now().UnixNano())
 	created, err := client.CreateOrganizationWithResponse(ctx, realm, openapi.OrganizationRepresentation{Name: &name})
 	must(t, created.HTTPResponse, created.Body, err)
@@ -119,4 +131,29 @@ func must(t *testing.T, resp *http.Response, body []byte, err error) {
 	if err := phasetwo.Check(resp, body); err != nil {
 		t.Fatal(err)
 	}
+}
+
+// createUser creates a user with the Keycloak admin API (not part of this SDK)
+// and returns its id.
+func createUser(t *testing.T, ctx context.Context, hc *http.Client, base, realm, username string) string {
+	t.Helper()
+	body := strings.NewReader(fmt.Sprintf(`{"username":%q,"enabled":true}`, username))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, base+"/admin/realms/"+realm+"/users", body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := hc.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("creating user %q: %s", username, resp.Status)
+	}
+	id, err := phasetwo.IDFromLocation(resp)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return id
 }
